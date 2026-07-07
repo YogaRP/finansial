@@ -1,7 +1,9 @@
 package model
 
+import "github.com/google/uuid"
+
 type Budget struct {
-	ID        string `gorm:"primaryKey"`
+	ID        uuid.UUID `gorm:"primaryKey;default:gen_random_uuid()"`
 	UserID    string
 	Limit     int
 	Period    string
