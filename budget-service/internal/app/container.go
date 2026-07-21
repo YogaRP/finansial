@@ -2,19 +2,39 @@ package app
 
 import (
 	"github.com/YogaRP/finansial/budget-service/internal/configs"
+	"github.com/YogaRP/finansial/budget-service/internal/controller"
 	"github.com/YogaRP/finansial/budget-service/internal/database"
 	"github.com/YogaRP/finansial/budget-service/internal/pkg/logger"
+	"github.com/YogaRP/finansial/budget-service/internal/pkg/rabbitmq"
+	"github.com/YogaRP/finansial/budget-service/internal/repository"
+	"github.com/YogaRP/finansial/budget-service/internal/service"
 )
 
 type Container struct {
+	budgetController controller.BudgetControllerInterface
+	BudgetService    service.BudgetServiceInterface
+	RabbitClient     *rabbitmq.Client
 }
 
 func BuildContainer() *Container {
 	config := configs.NewConfig()
-	_, err := database.SetupPostgres(config)
+	db, err := database.SetupPostgres(config)
 	if err != nil {
 		logger.Infof("Failed to connect to database: %v", err)
 	}
 
-	return &Container{}
+	rabbitClient, err := rabbitmq.NewClient(config)
+	if err != nil {
+		logger.Infof("Failed to initialise RabbitMQ client: %v", err)
+	}
+
+	budgetRepo := repository.NewBudgetRepository(db.DB)
+	budgetService := service.NewBudgetService(budgetRepo)
+	budgetController := controller.NewBudgetController(budgetService)
+
+	return &Container{
+		budgetController: budgetController,
+		BudgetService:    budgetService,
+		RabbitClient:     rabbitClient,
+	}
 }

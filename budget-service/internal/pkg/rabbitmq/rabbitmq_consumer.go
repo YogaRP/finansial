@@ -1,11 +1,16 @@
 package rabbitmq
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"net/url"
 
-	"github.com/YogaRP/finansial/user-service/internal/configs"
+	"github.com/YogaRP/finansial/budget-service/internal/configs"
+	"github.com/YogaRP/finansial/budget-service/internal/dto"
+	"github.com/YogaRP/finansial/budget-service/internal/pkg/logger"
+	"github.com/YogaRP/finansial/budget-service/internal/service"
+	"github.com/google/uuid"
 	"github.com/streadway/amqp"
 )
 
@@ -15,13 +20,14 @@ type Client struct {
 	conn *amqp.Connection
 }
 
-type CreateBudgetMessage struct {
+type createBudgetMessage struct {
 	UserID string `json:"user_id"`
 	Limit  uint   `json:"limit"`
 	Period string `json:"period"`
 }
 
 func NewClient(cfg *configs.Config) (*Client, error) {
+	// rabbitURL := fmt.Sprintf("amqp://%s:%s@%s:%s/", cfg.RabbitMQ.Username, cfg.RabbitMQ.Password, cfg.RabbitMQ.Host, cfg.RabbitMQ.Port)
 	rabbitURL := url.URL{
 		Scheme: "amqp",
 		User:   url.UserPassword(cfg.RabbitMQ.Username, cfg.RabbitMQ.Password),
@@ -62,52 +68,6 @@ func (c *Client) DeclareQueue(queue string) error {
 		nil,
 	)
 	return err
-}
-
-func (c *Client) PublishJSON(queue string, payload interface{}) error {
-	ch, err := c.conn.Channel()
-	if err != nil {
-		return err
-	}
-	defer ch.Close()
-
-	_, err = ch.QueueDeclare(
-		queue,
-		true,
-		false,
-		false,
-		false,
-		nil,
-	)
-	if err != nil {
-		return err
-	}
-
-	body, err := json.Marshal(payload)
-	if err != nil {
-		return err
-	}
-
-	return ch.Publish(
-		"",
-		queue,
-		false,
-		false,
-		amqp.Publishing{
-			ContentType:  "application/json",
-			DeliveryMode: amqp.Persistent,
-			Body:         body,
-		},
-	)
-}
-
-func (c *Client) PublishCreateBudget(userID string, limit uint, period string) error {
-	payload := CreateBudgetMessage{
-		UserID: userID,
-		Limit:  limit,
-		Period: period,
-	}
-	return c.PublishJSON(createBudgetQueue, payload)
 }
 
 func (c *Client) Consume(queue string, handler func(amqp.Delivery), prefetchCount int) error {
@@ -158,4 +118,46 @@ func (c *Client) Consume(queue string, handler func(amqp.Delivery), prefetchCoun
 	}()
 
 	return nil
+}
+
+func StartBudgetConsumer(client *Client, budgetService service.BudgetServiceInterface) error {
+	if client == nil {
+		return fmt.Errorf("rabbitmq client is nil")
+	}
+
+	return client.Consume(createBudgetQueue, func(d amqp.Delivery) {
+		var payload createBudgetMessage
+		if err := json.Unmarshal(d.Body, &payload); err != nil {
+			logger.Errorf("[RabbitMQConsumer] invalid message body: %v", err)
+			_ = d.Nack(false, false)
+			return
+		}
+
+		userID, err := uuid.Parse(payload.UserID)
+		if err != nil {
+			logger.Errorf("[RabbitMQConsumer] invalid user id: %v", err)
+			_ = d.Nack(false, false)
+			return
+		}
+
+		request := dto.CreateBudgetRequest{
+			UserID: userID,
+			Limit:  payload.Limit,
+			Period: payload.Period,
+		}
+		if err := request.Validate(); err != nil {
+			logger.Errorf("[RabbitMQConsumer] invalid create budget payload: %v", err)
+			_ = d.Nack(false, false)
+			return
+		}
+
+		if err := budgetService.CreateBudget(context.Background(), request); err != nil {
+			logger.Errorf("[RabbitMQConsumer] create budget failed: %v", err)
+			_ = d.Nack(false, true)
+			return
+		}
+
+		_ = d.Ack(false)
+		logger.Infof("[RabbitMQConsumer] created budget for user %s", payload.UserID)
+	}, 1)
 }

@@ -14,7 +14,7 @@ type BudgetRepositoryInterface interface {
 	CreateBudget(ctx context.Context, data *model.Budget) error
 	GetBudgetByID(ctx context.Context, id uuid.UUID) (*model.Budget, error)
 	UpdateBudget(ctx context.Context, id uuid.UUID, budget *model.Budget) error
-	GetBudgetByUserID(ctx context.Context, userID string) (*model.Budget, error)
+	GetBudgetByUserID(ctx context.Context, userID uuid.UUID) (*model.Budget, error)
 }
 
 type budgetRepository struct {
@@ -39,7 +39,7 @@ func (b *budgetRepository) GetBudgetByID(ctx context.Context, id uuid.UUID) (*mo
 }
 
 // GetBudgetsByUserID implements [BudgetRepositoryInterface].
-func (b *budgetRepository) GetBudgetByUserID(ctx context.Context, userID string) (*model.Budget, error) {
+func (b *budgetRepository) GetBudgetByUserID(ctx context.Context, userID uuid.UUID) (*model.Budget, error) {
 	var budget model.Budget
 
 	if err := b.db.WithContext(ctx).Where("user_id = ?", userID).First(&budget).Error; err != nil {

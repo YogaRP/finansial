@@ -1,12 +1,16 @@
 package model
 
-import "github.com/google/uuid"
+import (
+	"time"
+
+	"github.com/google/uuid"
+)
 
 type Budget struct {
 	ID        uuid.UUID `gorm:"primaryKey;default:gen_random_uuid()"`
-	UserID    string
-	Limit     int
+	UserID    uuid.UUID
+	Limit     uint
 	Period    string
-	CreatedAt int64
-	UpdatedAt int64
+	CreatedAt time.Time
+	UpdatedAt time.Time
 }

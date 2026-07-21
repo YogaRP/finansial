@@ -8,9 +8,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/YogaRP/finansial/user-service/internal/configs"
-	logger "github.com/YogaRP/finansial/user-service/internal/pkg/logger"
-	"github.com/YogaRP/finansial/user-service/internal/pkg/response"
+	"github.com/YogaRP/finansial/transaction-service/internal/configs"
+	logger "github.com/YogaRP/finansial/transaction-service/internal/pkg/logger"
+	"github.com/YogaRP/finansial/transaction-service/internal/pkg/response"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v3/middleware/logger"
@@ -38,11 +38,19 @@ func RunServer() {
 
 	// app.Use(middlewareGateway.GatewayAuth())
 	container := BuildContainer()
-	if container.RabbitClient != nil {
-		defer func() {
-			_ = container.RabbitClient.Close()
-		}()
+	if container.RabbitClient == nil {
+		log.Fatalf("RabbitMQ client is not initialized")
 	}
+
+	// if err := rabbitmq.StartBudgetConsumer(container.RabbitClient, container.BudgetService); err != nil {
+	// 	log.Fatalf("Error starting RabbitMQ consumer: %v", err)
+	// }
+
+	defer func() {
+		if container.RabbitClient != nil {
+			_ = container.RabbitClient.Close()
+		}
+	}()
 	SetupRoutes(app, container)
 
 	port := cfg.App.AppPort

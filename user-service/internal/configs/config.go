@@ -28,6 +28,7 @@ type RabbitMQ struct {
 	Port     string `json:"port"`
 	Username string `json:"username"`
 	Password string `json:"password"`
+	Vhost    string `json:"vhost"`
 }
 
 // type Supabase struct {
@@ -69,6 +70,7 @@ func NewConfig() *Config {
 			Port:     viper.GetString("RABBITMQ_PORT"),
 			Username: viper.GetString("RABBITMQ_USER"),
 			Password: viper.GetString("RABBITMQ_PASSWORD"),
+			Vhost:    viper.GetString("RABBITMQ_VHOST"),
 		},
 		// Supabase: Supabase{
 		// 	Url:    viper.GetString("SUPABASE_URL"),

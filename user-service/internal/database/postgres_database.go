@@ -49,8 +49,6 @@ func SetupPostgres(cfg *configs.Config) (*Postgres, error) {
 		return nil, err
 	}
 
-	SeedUser(db, cfg)
-
 	sqlDB.SetMaxIdleConns(cfg.SqlDB.DBMaxIdleConns)
 	sqlDB.SetMaxOpenConns(cfg.SqlDB.DBMaxOpenConns)
 

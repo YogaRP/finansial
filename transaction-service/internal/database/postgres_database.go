@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"net/url"
 
-	"github.com/YogaRP/finansial/budget-service/internal/configs"
-	"github.com/YogaRP/finansial/budget-service/internal/model"
-	"github.com/YogaRP/finansial/budget-service/internal/pkg/logger"
+	"github.com/YogaRP/finansial/transaction-service/internal/configs"
+	"github.com/YogaRP/finansial/transaction-service/internal/model"
+	"github.com/YogaRP/finansial/transaction-service/internal/pkg/logger"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -39,7 +39,7 @@ func SetupPostgres(cfg *configs.Config) (*Postgres, error) {
 		return nil, err
 	}
 
-	err = db.AutoMigrate(&model.Budget{})
+	err = db.AutoMigrate(&model.Transaction{})
 	if err != nil {
 		return nil, err
 	}

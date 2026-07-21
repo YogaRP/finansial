@@ -10,6 +10,8 @@ import (
 
 	"github.com/YogaRP/finansial/budget-service/internal/configs"
 	logger "github.com/YogaRP/finansial/budget-service/internal/pkg/logger"
+	"github.com/YogaRP/finansial/budget-service/internal/pkg/rabbitmq"
+	"github.com/YogaRP/finansial/budget-service/internal/pkg/response"
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/cors"
 	fiberlogger "github.com/gofiber/fiber/v3/middleware/logger"
@@ -24,7 +26,8 @@ func RunServer() {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c fiber.Ctx, err error) error {
 			logger.Errorf("Error: %v", err)
-			return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+			// return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
+			return response.InternalError(c, "Internal Server Error")
 		},
 	})
 
@@ -36,6 +39,19 @@ func RunServer() {
 
 	// app.Use(middlewareGateway.GatewayAuth())
 	container := BuildContainer()
+	if container.RabbitClient == nil {
+		log.Fatalf("RabbitMQ client is not initialized")
+	}
+
+	if err := rabbitmq.StartBudgetConsumer(container.RabbitClient, container.BudgetService); err != nil {
+		log.Fatalf("Error starting RabbitMQ consumer: %v", err)
+	}
+
+	defer func() {
+		if container.RabbitClient != nil {
+			_ = container.RabbitClient.Close()
+		}
+	}()
 	SetupRoutes(app, container)
 
 	port := cfg.App.AppPort

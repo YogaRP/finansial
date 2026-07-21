@@ -4,21 +4,15 @@ import (
 	"github.com/YogaRP/finansial/user-service/internal/configs"
 	"github.com/YogaRP/finansial/user-service/internal/model"
 	"github.com/YogaRP/finansial/user-service/internal/pkg/logger"
+	"github.com/YogaRP/finansial/user-service/internal/pkg/rabbitmq"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
-func SeedUser(db *gorm.DB, cfg *configs.Config) {
-
-	var userExist model.User
-	if err := db.Where("email = ?", "yogarizky51@gmail.com").First(&userExist).Error; err == nil {
-		logger.Info("[UserSeeder] SeedUser - 1: Data has been seeded")
-		return
-	}
-
+func SeedUser(db *gorm.DB, cfg *configs.Config, rabbitClient *rabbitmq.Client) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(cfg.App.UserPass), 10)
 	if err != nil {
-		logger.Errorf("[UserSeeder] SeedUser - 2: %v", err)
+		logger.Errorf("[UserSeeder] SeedUser - 1: %v", err)
 	}
 
 	hashedPassword := string(bytes)
@@ -29,9 +23,46 @@ func SeedUser(db *gorm.DB, cfg *configs.Config) {
 		Password: hashedPassword,
 	}
 
-	if err := db.FirstOrCreate(&user, model.User{Email: "yogarizky51@gmail.com"}).Error; err != nil {
-		logger.Errorf("[UserSeeder] SeedUser - 3: %v", err)
-	} else {
-		logger.Infof("[UserSeeder] SeedUser - 4: %v", "User created successfully")
+	result := db.FirstOrCreate(&user, model.User{Email: "yogarizky51@gmail.com"})
+	if result.Error != nil {
+		logger.Errorf("[UserSeeder] SeedUser - 2: %v", result.Error)
+		return
 	}
+
+	if result.RowsAffected == 0 {
+		logger.Info("[UserSeeder] SeedUser - 3: Data has been seeded")
+		return
+	}
+
+	if rabbitClient == nil {
+		logger.Warn("[UserSeeder] SeedUser - RabbitMQ client not available, skipping budget publish")
+		return
+	}
+
+	budgets := []struct {
+		Amount int64
+		Period string
+	}{
+		{
+			Amount: 1000000,
+			Period: "monthly",
+		},
+		{
+			Amount: 250000,
+			Period: "weekly",
+		},
+		{
+			Amount: 35000,
+			Period: "weekly",
+		},
+	}
+
+	for _, b := range budgets {
+		if err := rabbitClient.PublishCreateBudget(user.ID.String(), uint(b.Amount), b.Period); err != nil {
+			logger.Errorf("[UserSeeder] SeedUser - 4: failed publishing budget creation: %v", err)
+		} else {
+			logger.Infof("[UserSeeder] SeedUser - 5: budget creation published for user %s", user.Email)
+		}
+	}
+
 }
