@@ -2,36 +2,42 @@ package app
 
 import (
 	"github.com/YogaRP/finansial/transaction-service/internal/configs"
+	"github.com/YogaRP/finansial/transaction-service/internal/controller"
 	"github.com/YogaRP/finansial/transaction-service/internal/database"
+	"github.com/YogaRP/finansial/transaction-service/internal/pkg/kafka"
 	"github.com/YogaRP/finansial/transaction-service/internal/pkg/logger"
-	"github.com/YogaRP/finansial/transaction-service/internal/pkg/rabbitmq"
+	"github.com/YogaRP/finansial/transaction-service/internal/repository"
+	"github.com/YogaRP/finansial/transaction-service/internal/service"
 )
 
 type Container struct {
-	// budgetController controller.BudgetControllerInterface
-	// BudgetService service.BudgetServiceInterface
-	RabbitClient *rabbitmq.Client
+	TransactionController controller.TransactionControllerInterface
+	KafkaProducer         *kafka.Producer
 }
 
 func BuildContainer() *Container {
 	config := configs.NewConfig()
-	_, err := database.SetupPostgres(config)
+	db, err := database.SetupPostgres(config)
 	if err != nil {
-		logger.Infof("Failed to connect to database: %v", err)
+		logger.Errorf("Failed to connect to database: %v", err)
 	}
 
-	rabbitClient, err := rabbitmq.NewClient(config)
+	kafkaProducer := kafka.NewProducer(config.Kafka.Brokers)
 	if err != nil {
-		logger.Infof("Failed to initialise RabbitMQ client: %v", err)
+		logger.Errorf("Failed to initialise Kafka producer: %v", err)
 	}
 
-	// budgetRepo := repository.NewBudgetRepository(db.DB)
-	// budgetService := service.NewBudgetService(budgetRepo)
-	// budgetController := controller.NewBudgetController(budgetService)
+	// Repositories
+	transactionRepo := repository.NewTransactionRepository(db.DB)
+
+	// Services
+	transactionService := service.NewTransactionService(transactionRepo)
+
+	// Controllers
+	transactionController := controller.NewTransactionController(transactionService)
 
 	return &Container{
-		// budgetController: budgetController,
-		// BudgetService:    budgetService,
-		RabbitClient: rabbitClient,
+		TransactionController: transactionController,
+		KafkaProducer:         kafkaProducer,
 	}
 }

@@ -1,6 +1,7 @@
 package model
 
 import (
+	"slices"
 	"time"
 
 	"github.com/google/uuid"
@@ -13,6 +14,12 @@ const (
 	Pokok    TrxCategory = "pokok"
 	Sekunder TrxCategory = "sekunder"
 )
+
+var ValidTrxCategories = []TrxCategory{Lainnya, Pokok, Sekunder}
+
+func (c TrxCategory) IsValid() bool {
+	return slices.Contains(ValidTrxCategories, c)
+}
 
 type Transaction struct {
 	ID        uuid.UUID   `gorm:"primaryKey;default:gen_random_uuid()"`

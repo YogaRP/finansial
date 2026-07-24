@@ -31,6 +31,10 @@ type RabbitMQ struct {
 	Vhost    string `json:"vhost"`
 }
 
+type Kafka struct {
+	Brokers []string `json:"brokers"`
+}
+
 // type Supabase struct {
 // 	Url    string `json:"url"`
 // 	Key    string `json:"key"`
@@ -42,6 +46,7 @@ type Config struct {
 	SqlDB    SqlDB    `json:"sql_db"`
 	Redis    Redis    `json:"redis"`
 	RabbitMQ RabbitMQ `json:"rabbitmq"`
+	Kafka    Kafka    `json:"kafka"`
 	// Supabase Supabase `json:"supabase"`
 }
 
@@ -71,6 +76,9 @@ func NewConfig() *Config {
 			Username: viper.GetString("RABBITMQ_USER"),
 			Password: viper.GetString("RABBITMQ_PASSWORD"),
 			Vhost:    viper.GetString("RABBITMQ_VHOST"),
+		},
+		Kafka: Kafka{
+			Brokers: viper.GetStringSlice("KAFKA_BROKERS"),
 		},
 		// Supabase: Supabase{
 		// 	Url:    viper.GetString("SUPABASE_URL"),

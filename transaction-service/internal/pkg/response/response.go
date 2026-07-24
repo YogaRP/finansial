@@ -31,6 +31,13 @@ func BadRequest(c fiber.Ctx, message string) error {
 	})
 }
 
+func NotFound(c fiber.Ctx, message string) error {
+	return c.Status(fiber.StatusNotFound).JSON(Response{
+		Success: false,
+		Message: message,
+	})
+}
+
 func Unauthorized(c fiber.Ctx, message string) error {
 	return c.Status(fiber.StatusUnauthorized).JSON(Response{
 		Success: false,

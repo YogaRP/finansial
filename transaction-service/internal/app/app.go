@@ -25,7 +25,6 @@ func RunServer() {
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c fiber.Ctx, err error) error {
 			logger.Errorf("Error: %v", err)
-			// return c.Status(fiber.StatusInternalServerError).SendString("Internal Server Error")
 			return response.InternalError(c, "Internal Server Error")
 		},
 	})
@@ -38,17 +37,18 @@ func RunServer() {
 
 	// app.Use(middlewareGateway.GatewayAuth())
 	container := BuildContainer()
-	if container.RabbitClient == nil {
-		log.Fatalf("RabbitMQ client is not initialized")
+	if container.KafkaProducer == nil {
+		log.Fatalf("Kafka producer is not initialized")
 	}
 
 	// if err := rabbitmq.StartBudgetConsumer(container.RabbitClient, container.BudgetService); err != nil {
 	// 	log.Fatalf("Error starting RabbitMQ consumer: %v", err)
 	// }
 
+	// Defer closing the Kafka producer connection
 	defer func() {
-		if container.RabbitClient != nil {
-			_ = container.RabbitClient.Close()
+		if container.KafkaProducer != nil {
+			container.KafkaProducer.Close()
 		}
 	}()
 	SetupRoutes(app, container)
